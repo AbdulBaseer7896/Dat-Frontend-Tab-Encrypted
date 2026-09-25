@@ -40,4 +40,4 @@ appImage:
 npmRebuild: false
 publish:
   provider: generic
-  url: https://159.223.116.5.nip.io/file/update
+  url: http://159.223.116.5/file/update
