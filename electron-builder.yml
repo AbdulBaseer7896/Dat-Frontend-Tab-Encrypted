@@ -16,6 +16,7 @@ asarUnpack:
   - resources/**
 win:
   executableName: 'Dat One'
+  icon: build/icon.png
   target:
     - nsis
 nsis:

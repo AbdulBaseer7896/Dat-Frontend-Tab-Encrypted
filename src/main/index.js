@@ -1201,12 +1201,7 @@ function createWindow() {
   })
 }
 
-// autoUpdater.setFeedURL({
-//   provider: 'github',
-//   owner: 'AbdulBaseer7896',
-//   repo: 'dat-one'
-//   // token: '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'
-// })
+
 autoUpdater.setFeedURL({
   provider: 'generic',
   url: `${API_BASE_URL}/file/update`
