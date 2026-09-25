@@ -38,7 +38,7 @@ try {
   }
 } catch (e) {}
 
-let rawApiUrl = (process.env.API_BASE_URL || 'https://142-93-61-147.nip.io').trim()
+let rawApiUrl = (process.env.API_BASE_URL || 'https://159.223.116.5.nip.io').trim()
 if (!rawApiUrl.startsWith('http://') && !rawApiUrl.startsWith('https://')) {
   rawApiUrl = 'http://' + rawApiUrl
 }

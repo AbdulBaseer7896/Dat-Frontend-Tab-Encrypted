@@ -1,7 +1,7 @@
 {
-  "name": "testing-dat-one",
-  "version": "3.0.4",
-  "description": "A Dat Desktop Test Application",
+  "name": "dat-one",
+  "version": "3.0.5",
+  "description": "A Dat Desktop Application",
   "main": "out/main/index.js",
   "author": "DatOne",
   "scripts": {
