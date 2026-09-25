@@ -1,0 +1,43 @@
+appId: com.dat.one
+productName: 'Dat One'
+directories:
+  buildResources: build
+files:
+  - 'src/assets/logo.png'
+  - 'src/assets/tech-logo.png'
+  - 'out/**/*'
+  - 'node_modules/**/*'
+  - '!**/.vscode/*'
+  - '!src/*'
+  - '!electron.vite.config.{js,ts,mjs,cjs}'
+  - '!{.eslintignore,.eslintrc.cjs,.prettierignore,.prettierrc.yaml,CHANGELOG.md,README.md}'
+  - '!{.env,.env.*,.npmrc,package-lock.yaml}'
+asarUnpack:
+  - resources/**
+win:
+  executableName: 'Dat One'
+  target:
+    - nsis
+nsis:
+  artifactName: ${name}-${version}-setup.${ext}
+  shortcutName: ${productName}
+  uninstallDisplayName: ${productName}
+  createDesktopShortcut: always
+mac:
+  entitlementsInherit: build/entitlements.mac.plist
+  notarize: false
+dmg:
+  artifactName: ${name}-${version}.${ext}
+linux:
+  target:
+    - AppImage
+    - snap
+    - deb
+  maintainer: datone.org
+  category: Utility
+appImage:
+  artifactName: ${name}-${version}.${ext}
+npmRebuild: false
+publish:
+  provider: generic
+  url: http://142.93.61.147/file/update
