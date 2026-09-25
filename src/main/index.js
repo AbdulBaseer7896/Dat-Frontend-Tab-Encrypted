@@ -1237,10 +1237,14 @@ app.whenReady().then(async () => {
     console.error('Startup cleanup error:', err.message)
   }
 
-  autoUpdater.checkForUpdates().catch((err) => {
-    console.error('Update check failed:', err.message)
-  })
   store = new Store()
+  // Clear any stale update message persisted from a previous run
+  store.set('update-msg', null)
+  if (app.isPackaged) {
+    autoUpdater.checkForUpdates().catch((err) => {
+      console.error('Update check failed:', err.message)
+    })
+  }
 
   // Handle electron-store IPC messages
   ipcMain.handle('electron-store-get', (event, key) => {
