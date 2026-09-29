@@ -725,7 +725,7 @@ export default function CreateUpdateUser({
                           label="Multitab"
                         />
                       </Grid>
-                      <Grid item xs={4}>
+                      {/* <Grid item xs={4}>
                         <TextField
                           fullWidth
                           id="searchLoadsNoMultitab"
@@ -734,7 +734,7 @@ export default function CreateUpdateUser({
                           value={values.permissions.searchLoadsNoMultitab}
                           type="number"
                           InputProps={{
-                            inputProps: { min: 1, max: 10 }
+                            inputProps: { min: 1, max: 4 }
                           }}
                           onChange={handleChange}
                           onBlur={handleBlur}
@@ -743,6 +743,38 @@ export default function CreateUpdateUser({
                             touched.searchLoadsNoMultitab && Boolean(errors.searchLoadsNoMultitab)
                           }
                           helperText={touched.searchLoadsNoMultitab && errors.searchLoadsNoMultitab}
+                        />
+                      </Grid> */}
+
+                      <Grid item xs={4}>
+                        <TextField
+                          fullWidth
+                          id="searchLoadsNoMultitab"
+                          name="permissions.searchLoadsNoMultitab"
+                          label="Number of Multitab"
+                          value={values.permissions.searchLoadsNoMultitab ?? 1}
+                          type="number"
+                          InputProps={{
+                            inputProps: { min: 1, max: 4 }
+                          }}
+                          onChange={(e) => {
+                            let val = parseInt(e.target.value, 10);
+                            if (isNaN(val) || val < 1) val = 1;
+                            if (val > 4) val = 4;
+                            
+                            // Update form state (Formik)
+                            setFieldValue("permissions.searchLoadsNoMultitab", val);
+                          }}
+                          onBlur={handleBlur}
+                          disabled={!values.permissions.searchLoadsMultitab}
+                          error={
+                            touched.permissions?.searchLoadsNoMultitab &&
+                            Boolean(errors.permissions?.searchLoadsNoMultitab)
+                          }
+                          helperText={
+                            touched.permissions?.searchLoadsNoMultitab &&
+                            errors.permissions?.searchLoadsNoMultitab
+                          }
                         />
                       </Grid>
                       <Grid item xs={4}>

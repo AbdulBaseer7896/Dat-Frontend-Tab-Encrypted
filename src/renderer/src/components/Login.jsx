@@ -228,7 +228,7 @@ export default function Login({ checkLogin }) {
           )}
         </Formik>
         <div className="flex flex-col items-center justify-center mb-2">
-          <strong className="text-center text-[12px]">Powered By TAM-6.0.10</strong>
+          <strong className="text-center text-[12px]">Powered By TAM-6.0.12</strong>
           <img alt="logo" className="w-[200px]" src={logo} />
         </div>
         <small className="text-[12px]">By continuing you agree to our terms and conditions.</small>
