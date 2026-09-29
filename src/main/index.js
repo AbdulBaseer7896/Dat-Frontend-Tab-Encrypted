@@ -16,6 +16,16 @@ function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
+/**
+ * Clamp tab count to valid range [1, 100].
+ * Returns 1 if value is missing, NaN, or out of range.
+ */
+function clampTabs(value) {
+  const n = parseInt(value, 10)
+  if (isNaN(n)) return 1
+  return Math.max(1, Math.min(100, n))
+}
+
 // Automatically load .env file from project root
 try {
   const envCandidates = [
@@ -567,24 +577,7 @@ function trackURLLoad(window, url) {
   })
 }
 
-function deepEqual(obj1, obj2) {
-  if (obj1 === obj2) return true
 
-  if (obj1 == null || obj2 == null) return false
-
-  if (typeof obj1 !== 'object' || typeof obj2 !== 'object') return false
-
-  const keys1 = Object.keys(obj1)
-  const keys2 = Object.keys(obj2)
-
-  if (keys1.length !== keys2.length) return false
-
-  for (let key of keys1) {
-    if (!keys2.includes(key) || !deepEqual(obj1[key], obj2[key])) return false
-  }
-
-  return true
-}
 
 async function createUserWindow({
   proxyUrl,
@@ -738,24 +731,51 @@ async function createUserWindow({
 
       const response = await axios.request(config)
       const userData = response.data
-      if (!deepEqual(user, userData)) {
+
+      // ── Live tab-count update (no logout needed for tab count changes) ──
+      const oldAllowedTabs = clampTabs(
+        user.permission?.searchLoadsMultitab ? (user.permission?.searchLoadsNoMultitab ?? 1) : 1
+      )
+      const newAllowedTabs = clampTabs(
+        userData.permission?.searchLoadsMultitab ? (userData.permission?.searchLoadsNoMultitab ?? 1) : 1
+      )
+      if (oldAllowedTabs !== newAllowedTabs) {
+        console.log(`[MISMATCH] allowedTabs changed from ${oldAllowedTabs} to ${newAllowedTabs}, updating UI...`)
+        if (userWindow && !userWindow.isDestroyed()) {
+          userWindow.webContents
+            .executeJavaScript(`window.__updateAllowedTabs && window.__updateAllowedTabs(${newAllowedTabs})`)
+            .catch((e) => console.error(e))
+        }
+      }
+
+      // 1. Only check critical account flags instead of full deepEqual on the whole payload
+      if (userData.isBanned || userData.user?.isBanned) {
         store.set('user', null)
-        if (userWindow) {
-          userWindow.close()
-        }
-        if (mainWindow) {
-          mainWindow.webContents.send('check-session', null)
-        }
+        if (userWindow) userWindow.close()
+        if (mainWindow) mainWindow.webContents.send('check-session', null)
+        return
       }
+
+      // 2. Only log out if vital credentials changed (token or role)
+      if (user.token !== userData.token || user.role !== userData.role) {
+        store.set('user', null)
+        if (userWindow) userWindow.close()
+        if (mainWindow) mainWindow.webContents.send('check-session', null)
+        return
+      }
+
+      // Keep the local store up to date with new permissions/flags without logging them out
+      store.set('user', userData)
+
     } catch (error) {
-      console.error('Error during session check:', error)
-      // Handle specific errors if needed
-      store.set('user', null)
-      if (userWindow) {
-        userWindow.close()
-      }
-      if (mainWindow) {
-        mainWindow.webContents.send('check-session', null)
+      console.error('Error during session check:', error.message)
+      // 3. IGNORE network errors, timeouts, or 500s. Only log out on explicit 401/403
+      if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+        store.set('user', null)
+        if (userWindow) userWindow.close()
+        if (mainWindow) mainWindow.webContents.send('check-session', null)
+      } else {
+        console.warn('Session check failed due to network/server error. Retrying later...')
       }
     }
   }, 30000)
@@ -936,6 +956,89 @@ async function createUserWindow({
       cursor: not-allowed !important;
     }
   `
+  // Style the native DAT add-button - collapse wrapper gap + label
+  css += `
+    /* Collapse the Angular mat-tab-label wrapper and override mat-tab-disabled opacity */
+    .mat-tab-label:has(.add-closeall-container) {
+      min-width: max-content !important;
+      max-width: none !important;
+      width: max-content !important;
+      flex: 0 0 max-content !important;
+      padding: 0 !important;
+      opacity: 1 !important;
+      overflow: visible !important;
+    }
+    .mat-tab-label:has(.add-closeall-container) .mat-tab-label-content {
+      display: flex !important;
+      align-items: center !important;
+      gap: 12px !important;
+      padding: 0 12px !important;
+      width: max-content !important;
+    }
+    /* Hide the native "CLOSE ALL" button to avoid overlap */
+    [data-test="close-all-tabs-button"], .closeall-button-updated {
+      display: none !important;
+    }
+    .add-closeall-container {
+      display: flex !important;
+      align-items: center !important;
+      padding: 0 !important;
+      height: 100% !important;
+      width: max-content !important;
+    }
+    .add-closeall-container .add-button {
+      display: inline-flex !important;
+      align-items: center !important;
+      gap: 6px !important;
+      min-width: max-content !important;
+      max-width: none !important;
+      padding: 0 14px !important;
+      height: 100% !important;
+      background: transparent !important;
+      color: rgba(0,0,0,0.75) !important;
+      font-size: 13px !important;
+      font-weight: 500 !important;
+      letter-spacing: normal !important;
+      border-radius: 0 !important;
+      box-shadow: none !important;
+      opacity: 1 !important;
+      overflow: visible !important;
+      transition: background 0.2s !important;
+    }
+    .add-closeall-container .add-button:hover {
+      background: rgba(0,0,0,0.08) !important;
+      color: rgba(0,0,0,0.9) !important;
+    }
+    .add-closeall-container .add-button .tab-add-icon {
+      font-size: 18px !important;
+      width: 18px !important;
+      height: 18px !important;
+      line-height: 18px !important;
+      opacity: 1 !important;
+      color: rgba(0,0,0,0.75) !important;
+    }
+    .add-closeall-container .custom-tab-wrapper {
+      display: inline-flex !important;
+      align-items: center !important;
+      gap: 6px !important;
+      overflow: visible !important;
+    }
+    .custom-tab-text {
+      font-family: inherit !important;
+      font-size: 13px !important;
+      font-weight: 500 !important;
+      white-space: nowrap !important;
+      color: rgba(0,0,0,0.75) !important;
+      display: inline !important;
+    }
+    .add-closeall-container .mat-button-focus-overlay {
+      display: none !important;
+    }
+    /* Suppress Angular ripple z-index clipping */
+    .add-closeall-container .mat-ripple {
+      overflow: visible !important;
+    }
+  `
   if (!permissions.dashboard) {
     css += `
     a[href="/dashboard"] {
@@ -1099,43 +1202,84 @@ async function createUserWindow({
     }
   `
   }
-  if (permissions.searchLoadsMultitab) {
-    css += `
-      .mat-tab-labels > div:nth-child(${permissions.searchLoadsNoMultitab + 1}) .add-button {
-        display: none !important;
-      }
-      .mat-tab-labels > div:nth-child(n+${permissions.searchLoadsNoMultitab + 1}):nth-child(-n+10):not(:last-child) {
-        display: none !important;
-      }
-    `
-  } else {
-    css += `
-      .mat-tab-labels .add-button {
-        display: none !important;
-      }
-      .mat-tab-labels > div:nth-child(n+2):nth-child(-n+10) {
-        display: none !important;
-      }
-    `
-  }
+  // -- Tab Limit Enforcement --
+  // searchLoadsMultitab=true  -> use searchLoadsNoMultitab (number of tabs allowed)
+  // searchLoadsMultitab=false -> cap at 1 tab (add button always hidden)
+  const allowedTabs = clampTabs(
+    permissions.searchLoadsMultitab ? (permissions.searchLoadsNoMultitab ?? 1) : 1
+  )
 
-  if (datSessionId) {
-    userWindow.webContents.on('page-title-updated', () => {
+  // -- INJECT CSS + JS on every page load --
+  userWindow.webContents.on('page-title-updated', () => {
+    if (userWindow && !userWindow.isDestroyed()) {
       userWindow.webContents.insertCSS(css)
-    })
-    userWindow.webContents.on('did-finish-load', () => {
-      userWindow.webContents.insertCSS(css)
-      userWindow.webContents.executeJavaScript(`
-      const interval = setInterval(() => {
-        const button = document.querySelector('.add-button');
-        if (button) {
-          button.removeAttribute('disabled');
-          button.classList.remove('mat-button-disabled');
-        }
-      }, 100);
-    `)
-    })
-  }
+    }
+  })
+
+  userWindow.webContents.on('did-finish-load', () => {
+    if (!userWindow || userWindow.isDestroyed()) return
+
+    userWindow.webContents.insertCSS(css)
+
+    // Native DAT Tab Enforcer
+    // DAT has its own Angular Material tab system with a native add button.
+    // We override DAT's own disabled state and enforce our own limit.
+    // Poll every 200ms to survive Angular re-renders.
+    userWindow.webContents.executeJavaScript(
+      '(function () {' +
+      '  if (window.__tabLimitInstalled) return;' +
+      '  window.__tabLimitInstalled = true;' +
+      '  window.__allowedTabs = ' + allowedTabs + ';' +
+      '  function enforceTabLimit() {' +
+      '    var labelsContainer = document.querySelector(".mat-tab-labels");' +
+      '    if (!labelsContainer) return;' +
+      '    var allLabels = Array.from(labelsContainer.querySelectorAll(":scope > .mat-tab-label"));' +
+      '    var addBtnContainer = null;' +
+      '    var realTabs = [];' +
+      '    allLabels.forEach(function(el) {' +
+      '      if (el.querySelector("[data-test=\\"new-tab-button\\"], .add-button")) {' +
+      '        addBtnContainer = el;' +
+      '      } else {' +
+      '        realTabs.push(el);' +
+      '      }' +
+      '    });' +
+      '    if (!addBtnContainer) return;' +
+      '    var addBtn = addBtnContainer.querySelector("[data-test=\\"new-tab-button\\"], .add-button");' +
+      '    if (realTabs.length >= window.__allowedTabs) {' +
+      '      addBtnContainer.style.setProperty("display", "none", "important");' +
+      '    } else {' +
+      '      addBtnContainer.style.removeProperty("display");' +
+      '      addBtnContainer.classList.remove("mat-tab-disabled");' +
+      '      addBtnContainer.removeAttribute("aria-disabled");' +
+      '      if (addBtn) {' +
+      '        addBtn.removeAttribute("disabled");' +
+      '        addBtn.classList.remove("mat-button-disabled");' +
+      '        if (!addBtn.querySelector(".custom-tab-wrapper")) {' +
+      '          var customWrapper = document.createElement("div");' +
+      '          customWrapper.className = "custom-tab-wrapper";' +
+      '          customWrapper.innerHTML = "<span class=\\"tab-add-icon material-icons\\">add</span><span class=\\"custom-tab-text\\">Add a new tab</span>";' +
+      '          addBtn.appendChild(customWrapper);' +
+      '          var oldWrapper = addBtn.querySelector(".mat-button-wrapper");' +
+      '          if (oldWrapper) oldWrapper.style.display = "none";' +
+      '        }' +
+      '      }' +
+      '    }' +
+      '    realTabs.forEach(function(el, index) {' +
+      '      if (index >= window.__allowedTabs) {' +
+      '        el.style.setProperty("display", "none", "important");' +
+      '      } else {' +
+      '        el.style.removeProperty("display");' +
+      '      }' +
+      '    });' +
+      '  }' +
+      '  setInterval(enforceTabLimit, 200);' +
+      '  window.__updateAllowedTabs = function(limit) {' +
+      '    window.__allowedTabs = Math.max(1, parseInt(limit, 10) || 1);' +
+      '    enforceTabLimit();' +
+      '  };' +
+      '})();'
+    ).catch(function(err) { console.error('[TAB LIMIT] executeJavaScript failed:', err) })
+  })
 
   return userWindow
 }
