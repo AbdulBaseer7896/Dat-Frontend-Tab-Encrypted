@@ -41,5 +41,6 @@ appImage:
   artifactName: ${name}-${version}.${ext}
 npmRebuild: false
 publish:
-  provider: generic
-  url: http://159.223.116.5/file/update
+  provider: github
+  owner: AbdulBaseer7896
+  repo: Dat-Frontend-Tab-Encrypted

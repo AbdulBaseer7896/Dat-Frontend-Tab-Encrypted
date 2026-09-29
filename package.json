@@ -1,6 +1,6 @@
 {
   "name": "dat-TAM-Win",
-  "version": "6.0.1",
+  "version": "6.0.3",
   "description": "A Dat-TAM-Win Desktop Application",
   "main": "out/main/index.js",
   "author": "DatOne",
